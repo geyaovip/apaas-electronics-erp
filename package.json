@@ -1,0 +1,16 @@
+{
+  "name": "apaas-electronics-erp",
+  "private": true,
+  "packageManager": "pnpm@11.2.2",
+  "scripts": {
+    "dev:erp:api": "pnpm --filter @apaas/electronics-erp-backend dev",
+    "dev:erp:web": "pnpm --filter @apaas/electronics-erp-frontend dev",
+    "build:erp": "pnpm --filter @apaas/electronics-erp-backend build && pnpm --filter @apaas/electronics-erp-frontend build",
+    "test:erp": "pnpm --filter @apaas/electronics-erp-backend test:e2e",
+    "local:seed": "pnpm --filter @apaas/electronics-erp-backend local:seed",
+    "setup:local": "node scripts/init-local.mjs",
+    "start:local": "node scripts/start-local.mjs",
+    "backup:local": "node scripts/backup-local.mjs",
+    "deploy:cloudflare": "pnpm --filter @apaas/electronics-erp-frontend build && npx --yes wrangler@4.142.0 deploy"
+  }
+}

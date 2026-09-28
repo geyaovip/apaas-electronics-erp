@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model Tenant {
+  id String @id @default(uuid())
+  slug String @unique
+  name String
+  createdAt DateTime @default(now())
+  users User[]
+  sessions Session[]
+  customers Customer[]
+  opportunities Opportunity[]
+  products Product[]
+  suppliers Supplier[]
+  purchaseOrders PurchaseOrder[]
+  salesContracts SalesContract[]
+  balances InventoryBalance[]
+  movements StockMovement[]
+  stockDocuments StockDocument[]
+  receivables Receivable[]
+  payables Payable[]
+  payments Payment[]
+  audits AuditLog[]
+}
+model User {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  email String
+  name String
+  passwordHash String
+  role String
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  sessions Session[]
+  customers Customer[]
+  opportunities Opportunity[]
+  salesContracts SalesContract[]
+  @@unique([tenantId,email])
+}
+model Session {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  tokenHash String @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+model Customer {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  name String
+  code String
+  contactName String?
+  phone String?
+  industry String?
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id])
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  opportunities Opportunity[]
+  contracts SalesContract[]
+  @@unique([tenantId,code])
+  @@index([tenantId,ownerId])
+}
+model Opportunity {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  customerId String
+  customer Customer @relation(fields: [customerId], references: [id])
+  name String
+  stage String @default("discovery")
+  estimatedAmount Decimal @db.Decimal(18,2)
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contracts SalesContract[]
+  @@index([tenantId,ownerId,stage])
+}
+model Product {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  sku String
+  name String
+  category String?
+  unit String @default("件")
+  salePrice Decimal @db.Decimal(18,2)
+  purchasePrice Decimal @db.Decimal(18,2)
+  reorderPoint Int @default(0)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  purchaseLines PurchaseLine[]
+  salesLines SalesLine[]
+  balance InventoryBalance?
+  movements StockMovement[]
+  @@unique([tenantId,sku])
+}
+model Supplier {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  code String
+  name String
+  contactName String?
+  phone String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  purchases PurchaseOrder[]
+  @@unique([tenantId,code])
+}
+model PurchaseOrder {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  number String
+  supplierId String
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  status String @default("draft")
+  total Decimal @db.Decimal(18,2)
+  note String?
+  version Int @default(1)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lines PurchaseLine[]
+  payable Payable?
+  @@unique([tenantId,number])
+  @@index([tenantId,status])
+}
+model PurchaseLine {
+  id String @id @default(uuid())
+  orderId String
+  order PurchaseOrder @relation(fields: [orderId], references: [id])
+  productId String
+  product Product @relation(fields: [productId], references: [id])
+  sku String
+  name String
+  quantity Int
+  receivedQty Int @default(0)
+  unitPrice Decimal @db.Decimal(18,2)
+  lineTotal Decimal @db.Decimal(18,2)
+}
+model SalesContract {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  number String
+  customerId String
+  customer Customer @relation(fields: [customerId], references: [id])
+  opportunityId String?
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id])
+  status String @default("draft")
+  total Decimal @db.Decimal(18,2)
+  note String?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lines SalesLine[]
+  receivable Receivable?
+  @@unique([tenantId,number])
+  @@index([tenantId,ownerId,status])
+}
+model SalesLine {
+  id String @id @default(uuid())
+  contractId String
+  contract SalesContract @relation(fields: [contractId], references: [id])
+  productId String
+  product Product @relation(fields: [productId], references: [id])
+  sku String
+  name String
+  quantity Int
+  shippedQty Int @default(0)
+  unitPrice Decimal @db.Decimal(18,2)
+  lineTotal Decimal @db.Decimal(18,2)
+}
+model InventoryBalance {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  productId String @unique
+  product Product @relation(fields: [productId], references: [id])
+  quantity Int @default(0)
+  updatedAt DateTime @updatedAt
+  @@index([tenantId,productId])
+}
+model StockMovement {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  productId String
+  product Product @relation(fields: [productId], references: [id])
+  direction String
+  quantity Int
+  sourceType String
+  sourceId String
+  documentId String?
+  document StockDocument? @relation(fields: [documentId], references: [id])
+  actorId String
+  createdAt DateTime @default(now())
+  @@unique([tenantId,documentId,productId])
+  @@index([tenantId,productId,createdAt])
+}
+model StockDocument {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  number String
+  kind String
+  sourceId String
+  note String?
+  actorId String
+  createdAt DateTime @default(now())
+  movements StockMovement[]
+  @@unique([tenantId,number])
+  @@index([tenantId,kind,sourceId,createdAt])
+}
+model Receivable {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  contractId String @unique
+  contract SalesContract @relation(fields: [contractId], references: [id])
+  amount Decimal @db.Decimal(18,2)
+  paidAmount Decimal @default(0) @db.Decimal(18,2)
+  status String @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+  @@index([tenantId,status])
+}
+model Payable {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  orderId String @unique
+  order PurchaseOrder @relation(fields: [orderId], references: [id])
+  amount Decimal @db.Decimal(18,2)
+  paidAmount Decimal @default(0) @db.Decimal(18,2)
+  status String @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+  @@index([tenantId,status])
+}
+model Payment {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  receivableId String?
+  receivable Receivable? @relation(fields: [receivableId], references: [id])
+  payableId String?
+  payable Payable? @relation(fields: [payableId], references: [id])
+  amount Decimal @db.Decimal(18,2)
+  reference String
+  actorId String
+  createdAt DateTime @default(now())
+  @@index([tenantId,receivableId])
+  @@index([tenantId,payableId])
+  @@unique([tenantId,receivableId,reference])
+  @@unique([tenantId,payableId,reference])
+}
+model AuditLog {
+  id String @id @default(uuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actorId String
+  action String
+  resourceType String
+  resourceId String
+  detail Json?
+  createdAt DateTime @default(now())
+  @@index([tenantId,resourceType,resourceId,createdAt])
+}
+
+model AiConversation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  userId      String
+  contextType String
+  contextId   String?
+  title       String
+  messages    Json     @default("[]")
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([tenantId, userId, updatedAt])
+}

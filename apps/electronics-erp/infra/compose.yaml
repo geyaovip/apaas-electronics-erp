@@ -1,0 +1,18 @@
+name: apaas-electronics-erp
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: erp_dev
+      POSTGRES_PASSWORD: erp_dev_local
+      POSTGRES_DB: electronics_erp
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - erp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_dev -d electronics_erp"]
+      interval: 3s
+      retries: 10
+volumes:
+  erp_pgdata:
