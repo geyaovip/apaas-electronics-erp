@@ -1,5 +1,5 @@
 export type Role = 'admin'|'sales'|'purchasing'|'warehouse'|'finance';
-export interface Session { user:{id:string;tenantId:string;name:string;role:Role}; tenant:{slug:string;name:string} }
+export interface Session { user:{id:string;tenantId:string;name:string;email?:string;role:Role}; tenant:{slug:string;name:string} }
 export interface User { id:string;name:string;email:string;role:Role;active:boolean }
 export interface Customer { id:string;code:string;name:string;contactName?:string;phone?:string;industry?:string;active:boolean;opportunities?:Opportunity[];contracts?:Contract[] }
 export interface Opportunity { id:string;name:string;stage:string;estimatedAmount:string;customerId:string;customer?:{name:string} }
