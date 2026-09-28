@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthRequest, SessionGuard } from './common';
 import { PrismaService } from './prisma.service';
 import { ErpService } from './erp.service';
@@ -8,14 +8,17 @@ export class ErpController {
   constructor(private erp: ErpService) {}
   @Get('customers') customers(@Req() r: AuthRequest, @Query() q: Record<string,unknown>) { return this.erp.listCustomers(r.actor,q); }
   @Post('customers') createCustomer(@Req() r: AuthRequest, @Body() b: unknown) { return this.erp.createCustomer(r.actor,b); }
+  @Patch('customers/:id') updateCustomer(@Req() r: AuthRequest, @Param('id') id: string, @Body() b: unknown) { return this.erp.updateCustomer(r.actor,id,b); }
   @Get('customers/:id') customer(@Req() r: AuthRequest, @Param('id') id: string) { return this.erp.getCustomer(r.actor,id); }
   @Get('opportunities') opportunities(@Req() r: AuthRequest) { return this.erp.listOpportunities(r.actor); }
   @Post('opportunities') createOpportunity(@Req() r: AuthRequest, @Body() b: unknown) { return this.erp.createOpportunity(r.actor,b); }
   @Post('opportunities/:id/stage') changeOpportunity(@Req() r: AuthRequest, @Param('id') id: string, @Body() b: unknown) { return this.erp.changeOpportunity(r.actor,id,b); }
   @Get('products') products(@Req() r: AuthRequest) { return this.erp.listProducts(r.actor); }
   @Post('products') createProduct(@Req() r: AuthRequest, @Body() b: unknown) { return this.erp.createProduct(r.actor,b); }
+  @Patch('products/:id') updateProduct(@Req() r: AuthRequest, @Param('id') id: string, @Body() b: unknown) { return this.erp.updateProduct(r.actor,id,b); }
   @Get('suppliers') suppliers(@Req() r: AuthRequest) { return this.erp.listSuppliers(r.actor); }
   @Post('suppliers') createSupplier(@Req() r: AuthRequest, @Body() b: unknown) { return this.erp.createSupplier(r.actor,b); }
+  @Patch('suppliers/:id') updateSupplier(@Req() r: AuthRequest, @Param('id') id: string, @Body() b: unknown) { return this.erp.updateSupplier(r.actor,id,b); }
   @Get('purchases') purchases(@Req() r: AuthRequest, @Query() q: Record<string,unknown>) { return this.erp.listPurchases(r.actor,q); }
   @Post('purchases') createPurchase(@Req() r: AuthRequest, @Body() b: unknown) { return this.erp.createPurchase(r.actor,b); }
   @Get('purchases/:id') purchase(@Req() r: AuthRequest, @Param('id') id: string) { return this.erp.getPurchase(r.actor,id); }
@@ -39,5 +42,6 @@ export class ErpController {
   @Get('dashboard') dashboard(@Req() r: AuthRequest) { return this.erp.dashboard(r.actor); }
   @Get('admin/users') users(@Req() r: AuthRequest) { return this.erp.listUsers(r.actor); }
   @Post('admin/users') createUser(@Req() r: AuthRequest, @Body() b: unknown) { return this.erp.createUser(r.actor,b); }
+  @Patch('admin/users/:id') updateUser(@Req() r: AuthRequest, @Param('id') id: string, @Body() b: unknown) { return this.erp.updateUser(r.actor,id,b); }
 }
 @Controller('api/v1') export class HealthController { constructor(private db: PrismaService) {} @Get('health') async health() { await this.db.$queryRaw`SELECT 1`; return { ok:true, database:'ready' }; } }

@@ -1,10 +1,10 @@
 export type Role = 'admin'|'sales'|'purchasing'|'warehouse'|'finance';
 export interface Session { user:{id:string;tenantId:string;name:string;role:Role}; tenant:{slug:string;name:string} }
-export interface User { id:string;name:string;email:string;role:Role }
-export interface Customer { id:string;code:string;name:string;contactName?:string;phone?:string;industry?:string;opportunities?:Opportunity[];contracts?:Contract[] }
+export interface User { id:string;name:string;email:string;role:Role;active:boolean }
+export interface Customer { id:string;code:string;name:string;contactName?:string;phone?:string;industry?:string;active:boolean;opportunities?:Opportunity[];contracts?:Contract[] }
 export interface Opportunity { id:string;name:string;stage:string;estimatedAmount:string;customerId:string;customer?:{name:string} }
 export interface Product { id:string;sku:string;name:string;category?:string;salePrice:string;purchasePrice:string;reorderPoint:number;active:boolean;balance?:{quantity:number} }
-export interface Supplier { id:string;code:string;name:string;contactName?:string;phone?:string }
+export interface Supplier { id:string;code:string;name:string;contactName?:string;phone?:string;active:boolean }
 export interface Line { id:string;productId:string;sku:string;name:string;quantity:number;receivedQty?:number;shippedQty?:number;unitPrice:string;lineTotal:string }
 export interface StockDocument { id:string;number:string;kind:string;createdAt:string;note?:string;movements:Movement[] }
 export interface Purchase { id:string;number:string;supplierId:string;supplier?:{id:string;name:string};status:string;total:string;note?:string;version:number;lines?:Line[];payable?:Account;stockDocuments?:StockDocument[] }
