@@ -26,6 +26,7 @@ model Tenant {
   payables Payable[]
   payments Payment[]
   audits AuditLog[]
+  aiSettings         AiProviderSettings?
 }
 model User {
   id String @id @default(uuid())
@@ -297,4 +298,14 @@ model AiConversation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@index([tenantId, userId, updatedAt])
+}
+
+model AiProviderSettings {
+  tenantId      String   @id
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  model         String
+  baseUrl       String
+  keyCiphertext String
+  updatedBy     String
+  updatedAt     DateTime @updatedAt
 }

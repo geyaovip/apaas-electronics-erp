@@ -52,7 +52,7 @@ node scripts/backup-local.mjs
 
 ## AI 配置与边界
 
-在 **API 服务端**配置 `OPENAI_API_KEY`、`OPENAI_MODEL`，可选配置 `OPENAI_BASE_URL`。未接入兼容 OpenAI Responses API 的模型时，ERP 核心业务照常运行，AI 入口会提示未启用。采购单与销售合同详情的履约分析将系统核算数量和模型说明分开展示；建议只读，不能自动入库、出库或记账。上下文读取遵循当前用户权限。参见[AI 能力与数据边界](docs/06-AI能力实施规划.md)。
+管理员在左下角账号菜单进入“模型接入”，填写兼容 OpenAI Responses API 的 API 根地址、模型名称和 API Key，可先测试再保存。密钥在服务端加密保存，页面不回显；部署时必须设置并长期保管 `AI_CONFIG_ENCRYPTION_KEY`。也可在 API 服务端配置 `OPENAI_API_KEY`、`OPENAI_MODEL` 和可选的 `OPENAI_BASE_URL` 作为默认值。未接入兼容 OpenAI Responses API 的模型时，ERP 核心业务照常运行，AI 入口会提示未启用。采购单与销售合同详情的履约分析将系统核算数量和模型说明分开展示；建议只读，不能自动入库、出库或记账。上下文读取遵循当前用户权限。参见[AI 能力与数据边界](docs/06-AI能力实施规划.md)。
 
 ## 开发与验证
 

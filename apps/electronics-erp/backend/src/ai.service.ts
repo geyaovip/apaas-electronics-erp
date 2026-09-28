@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { Actor, AppError, hash, parse } from './common';
 import { PrismaService } from './prisma.service';
 import { ErpService } from './erp.service';
-import { AiTurn, aiConfigured, generateAiAnswer } from './ai-model';
+import { AiTurn, generateAiAnswer } from './ai-model';
+import { aiStatus, clearAiSettings, publicAiSettings, resolveAiConnection, saveAiSettings, testAiSettings } from './ai-settings';
 
 const chatInput = z.object({ conversation_id: z.string().uuid().optional(), context_type: z.enum(['dashboard', 'purchase', 'contract']), context_id: z.string().uuid().optional(), message: z.string().trim().min(2).max(2000) });
 type ContextType = z.infer<typeof chatInput>['context_type'];
@@ -17,7 +18,14 @@ type ContractFactsInput = { lines: { sku: string; quantity: number; shippedQty: 
 @Injectable()
 export class AiService {
   constructor(private db: PrismaService, private erp: ErpService) {}
-  status() { return { configured: aiConfigured(), provider: aiConfigured() ? 'OpenAI' : null }; }
+  status(actor: Actor) { return aiStatus(this.db, actor.tenantId); }
+  settings(actor: Actor) { return publicAiSettings(this.db, actor); }
+  saveSettings(actor: Actor, body: unknown) { return saveAiSettings(this.db, actor, body); }
+  testSettings(actor: Actor, body: unknown) { return testAiSettings(this.db, actor, body); }
+  clearSettings(actor: Actor) { return clearAiSettings(this.db, actor); }
+  private async answer(actor: Actor, instructions: string, context: unknown, turns: AiTurn[], format?: { name: string; schema: Record<string, unknown> }) {
+    return generateAiAnswer(await resolveAiConnection(this.db, actor.tenantId), instructions, context, turns, format);
+  }
 
   private async context(actor: Actor, type: ContextType, id?: string) {
     if (type !== 'dashboard' && !id) throw new AppError('VALIDATION_ERROR', '请选择业务记录后再提问', 400);
@@ -82,7 +90,7 @@ export class AiService {
     const source = await this.context(actor, input.context_type, input.context_id);
     const sourceHash = hash(JSON.stringify(source.data));
     const facts = this.facts(input.context_type, source.data);
-    const raw = await generateAiAnswer('你是电子行业 ERP 履约分析助手。依据给定的订单进度、库存和可见采购数据解释风险。不要预测具体到货日期，不要把当前库存视为已预留。actions 只能是人工可审查的建议，不得声称已下单、入库、出库或记账。', { source: source.data, calculatedFacts: facts }, [{ role: 'user', content: '请说明当前单据的履约风险和待核实事项。' }], narrativeFormat);
+    const raw = await this.answer(actor, '你是电子行业 ERP 履约分析助手。依据给定的订单进度、库存和可见采购数据解释风险。不要预测具体到货日期，不要把当前库存视为已预留。actions 只能是人工可审查的建议，不得声称已下单、入库、出库或记账。', { source: source.data, calculatedFacts: facts }, [{ role: 'user', content: '请说明当前单据的履约风险和待核实事项。' }], narrativeFormat);
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { throw new AppError('AI_INVALID_OUTPUT', 'AI 分析结果格式无效，请重试', 502); }
     const narrative = narrativeSchema.safeParse(parsed);
@@ -90,7 +98,7 @@ export class AiService {
     const fresh = await this.context(actor, input.context_type, input.context_id);
     if (hash(JSON.stringify(fresh.data)) !== sourceHash) throw new AppError('VERSION_CONFLICT', '单据或库存已更新，请重新分析', 409);
     const review = { ...narrative.data, facts };
-    const row = await this.db.auditLog.create({ data: { tenantId: actor.tenantId, actorId: actor.id, action: 'ai.risk_review', resourceType: 'ai_risk_review', resourceId: input.context_id, detail: { contextType: input.context_type, sourceHash, model: process.env.OPENAI_MODEL, review } as Prisma.InputJsonValue } });
+    const row = await this.db.auditLog.create({ data: { tenantId: actor.tenantId, actorId: actor.id, action: 'ai.risk_review', resourceType: 'ai_risk_review', resourceId: input.context_id, detail: { contextType: input.context_type, sourceHash, model: (await resolveAiConnection(this.db, actor.tenantId))?.model, review } as Prisma.InputJsonValue } });
     return { review, reviewed_at: row.createdAt, source: { title: source.title, href: source.href } };
   }
   async chat(actor: Actor, body: unknown) {
@@ -100,7 +108,7 @@ export class AiService {
     if (old && (old.contextType !== input.context_type || old.contextId !== (input.context_id || null))) throw new AppError('AI_CONTEXT_CHANGED', '业务对象已切换，请新建对话', 409);
     const history = (old?.messages || []) as AiTurn[];
     const prompt = [...history, { role: 'user' as const, content: input.message }];
-    const answer = await generateAiAnswer('你是电子行业 ERP 业务助手。只分析订单已收或已发数量、当前库存与已确认采购。可以指出当前库存不足或采购未收齐，但没有供应商交期数据，不能预测具体到货日期。金额与财务数据仅按提供的信息回答。不得自动下单、入库、出库或记账。', { source: source.title, data: source.data }, prompt);
+    const answer = await this.answer(actor, '你是电子行业 ERP 业务助手。只分析订单已收或已发数量、当前库存与已确认采购。可以指出当前库存不足或采购未收齐，但没有供应商交期数据，不能预测具体到货日期。金额与财务数据仅按提供的信息回答。不得自动下单、入库、出库或记账。', { source: source.title, data: source.data }, prompt);
     const messages = [...prompt, { role: 'assistant' as const, content: answer }].slice(-20);
     let conversation;
     if (old) {
@@ -108,7 +116,7 @@ export class AiService {
       if (!changed.count) throw new AppError('VERSION_CONFLICT', '对话已更新，请刷新后重试', 409);
       conversation = await this.db.aiConversation.findUniqueOrThrow({ where: { id: old.id } });
     } else conversation = await this.db.aiConversation.create({ data: { tenantId: actor.tenantId, userId: actor.id, contextType: input.context_type, contextId: input.context_id, title: source.title, messages: messages as Prisma.InputJsonValue } });
-    await this.db.auditLog.create({ data: { tenantId: actor.tenantId, actorId: actor.id, action: 'ai.chat', resourceType: 'ai_conversation', resourceId: conversation.id, detail: { contextType: input.context_type, contextId: input.context_id || null, model: process.env.OPENAI_MODEL } } });
+    await this.db.auditLog.create({ data: { tenantId: actor.tenantId, actorId: actor.id, action: 'ai.chat', resourceType: 'ai_conversation', resourceId: conversation.id, detail: { contextType: input.context_type, contextId: input.context_id || null, model: (await resolveAiConnection(this.db, actor.tenantId))?.model } } });
     return { conversation_id: conversation.id, answer, messages, sources: [{ title: source.title, href: source.href }] };
   }
 }
