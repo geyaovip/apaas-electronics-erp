@@ -39,25 +39,16 @@ function DashboardPage({session}:{session:Session}){
   const canFinance=['admin','finance'].includes(role);
   const purchases=useLoad<Page<Purchase>>(canPurchase?'/purchases?page=1&page_size=4':null);
   const contracts=useLoad<Page<Contract>>(canContract?'/contracts?page=1&page_size=4':null);
-  const shortcuts=role==='sales'?[{to:'/customers',title:'客户',detail:'维护客户资料'},{to:'/opportunities',title:'商机',detail:'跟进销售机会'},{to:'/contracts',title:'销售合同',detail:'查看履约进度'}]
-    :role==='purchasing'?[{to:'/purchases',title:'采购单',detail:'跟进入库'},{to:'/suppliers',title:'供应商',detail:'维护合作方'},{to:'/products',title:'产品目录',detail:'管理采购商品'}]
-    :role==='warehouse'?[{to:'/purchases',title:'采购入库',detail:'处理待收货单据'},{to:'/contracts',title:'销售出库',detail:'处理待发货合同'},{to:'/inventory',title:'库存与流水',detail:'核对库存变动'}]
-    :role==='finance'?[{to:'/finance',title:'应收应付',detail:'核对未结清余额'},{to:'/contracts',title:'销售合同',detail:'查看应收来源'},{to:'/purchases',title:'采购单',detail:'查看应付来源'}]
-    :[{to:'/purchases',title:'采购入库',detail:'查看待收货单据'},{to:'/contracts',title:'销售履约',detail:'查看待发货合同'},{to:'/finance',title:'应收应付',detail:'核对账款余额'}];
   return <div className="erp-dashboard">
-    <Header title="经营概览" subtitle={`${session.user.name}，查看业务进展与近期单据`}/>
+    <Header title="经营概览" subtitle="待处理单据与业务进展"/>
     <Notice error={error}/>
     {loading&&!data?<div className="loading">正在加载…</div>:data&&<>
       <div className="erp-metrics">
-        {['admin','sales','finance'].includes(role)&&<Link className="erp-metric" to="/customers"><span>客户</span><strong>{data.customers}</strong><small>查看客户</small><ArrowRight size={17}/></Link>}
         {canPurchase&&<Link className="erp-metric" to="/purchases"><span>待入库采购单</span><strong>{data.purchases_to_receive}</strong><small>查看采购</small><ArrowRight size={17}/></Link>}
         {canContract&&<Link className="erp-metric" to="/contracts"><span>待出库销售合同</span><strong>{data.contracts_to_ship}</strong><small>查看合同</small><ArrowRight size={17}/></Link>}
-        <Link className="erp-metric" to="/products"><span>在售产品</span><strong>{data.active_products}</strong><small>查看产品</small><ArrowRight size={17}/></Link>
+        {canFinance?<><Link className="erp-metric money" to="/finance"><span>应收余额</span><strong>{money(data.receivable_balance)}</strong><small>查看账款</small><ArrowRight size={17}/></Link><Link className="erp-metric money" to="/finance"><span>应付余额</span><strong>{money(data.payable_balance)}</strong><small>查看账款</small><ArrowRight size={17}/></Link></>:<Link className="erp-metric" to="/products"><span>在售产品</span><strong>{data.active_products}</strong><small>查看产品</small><ArrowRight size={17}/></Link>}
       </div>
-      <div className="erp-overview-grid">
-        <section className="panel erp-work-panel"><div className="erp-panel-head"><h2>业务进展</h2></div><div className="erp-work-stats">{['admin','sales','finance'].includes(role)&&<div><span>在跟商机</span><strong>{data.active_opportunities}</strong></div>}{canPurchase&&<div><span>待收货采购</span><strong>{data.purchases_to_receive}</strong></div>}{canContract&&<div><span>待发货合同</span><strong>{data.contracts_to_ship}</strong></div>}</div>{canFinance&&<div className="erp-balance-row"><div><span>应收余额</span><strong>{money(data.receivable_balance)}</strong></div><div><span>应付余额</span><strong>{money(data.payable_balance)}</strong></div></div>}{canFinance&&<p className="muted">{data.amount_definition}</p>}</section>
-        <section className="panel erp-shortcuts"><div className="erp-panel-head"><h2>常用入口</h2></div><div className="erp-shortcut-list">{shortcuts.map(item=><Link to={item.to} key={item.to}><span><strong>{item.title}</strong><small>{item.detail}</small></span><ArrowRight size={17}/></Link>)}</div></section>
-      </div>
+      <div className="erp-overview-strip">{['admin','sales','finance'].includes(role)&&<Link to="/customers">客户 <strong>{data.customers}</strong></Link>}{['admin','sales','finance'].includes(role)&&<Link to="/opportunities">在跟商机 <strong>{data.active_opportunities}</strong></Link>}<Link to="/products">在售产品 <strong>{data.active_products}</strong></Link>{canFinance&&<span>{data.amount_definition}</span>}</div>
     </>}
     <div className={`erp-recent-grid ${canPurchase&&canContract?'':'single'}`}>
       {canPurchase&&<section className="panel"><div className="erp-panel-head"><h2>近期采购单</h2><Link to="/purchases">查看全部 <ArrowRight size={15}/></Link></div><Notice error={purchases.error}/>{purchases.loading&&!purchases.data?<div className="loading">正在加载…</div>:purchases.data?.items.length?<div className="erp-recent-list">{purchases.data.items.map(purchase=><Link to={`/purchases/${purchase.id}`} key={purchase.id}><span><strong>{purchase.number} · {purchase.supplier?.name||'供应商'}</strong><small>{money(purchase.total)}</small></span><Status value={purchase.status} map={purchaseStatus}/></Link>)}</div>:<div className="erp-dashboard-empty">暂无采购单<Link to="/purchases">查看采购单</Link></div>}</section>}
